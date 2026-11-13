@@ -133,6 +133,35 @@
   .count span { font-family: var(--utility); font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ivory-dim); }
   .count-note { text-align: center; font-style: italic; color: var(--ivory-dim); margin-top: 18px; }
 
+  /* Calendar buttons */
+  .remind { display: grid; gap: 14px; justify-items: center; text-align: center; margin-top: 40px; }
+  .remind-btns { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .remind-btns .btn { margin-top: 0; }
+  button.btn { background: transparent; cursor: pointer; }
+  .remind-note { font-style: italic; color: var(--ivory-dim); font-size: 17px; max-width: 40ch; text-wrap: balance; }
+
+  /* Reminder pop-up */
+  .reminder {
+    position: fixed; z-index: 20;
+    left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    max-width: 460px; margin-inline: auto;
+    background: linear-gradient(180deg, #3d1624, #2a0f19);
+    border: 1px solid var(--gold); box-shadow: 0 18px 50px rgba(0,0,0,0.6);
+    padding: 22px 24px 22px; display: grid; gap: 8px; justify-items: start; text-align: left;
+  }
+  .reminder[hidden] { display: none; }
+  .reminder .kn-line { font-family: var(--kannada); font-size: 18px; color: var(--rose); }
+  .reminder .rem-title { font-size: 30px; font-weight: 500; color: var(--gold); line-height: 1.1; }
+  .reminder .rem-body { font-size: 18px; color: var(--ivory); line-height: 1.45; }
+  .reminder .btn { margin-top: 6px; padding: 10px 22px; }
+  .rem-x {
+    position: absolute; top: 6px; right: 8px; width: 40px; height: 40px;
+    background: transparent; border: 0; color: var(--ivory-dim); font-size: 28px; line-height: 1; cursor: pointer;
+  }
+  .rem-x:hover { color: var(--gold); }
+  .rem-x:focus-visible { outline: 2px solid var(--rose); outline-offset: 2px; }
+
   /* Venue */
   .venue { display: grid; gap: 14px; justify-items: center; text-align: center; }
   .venue .place { font-size: clamp(32px, 8vw, 50px); font-weight: 500; font-style: italic; color: var(--ivory); line-height: 1.1; max-width: 18ch; text-wrap: balance; }
@@ -165,6 +194,8 @@
     .hero > *:nth-child(4) { animation-delay: .45s; }
     .hero > *:nth-child(5) { animation-delay: .6s; }
     @keyframes rise { from { transform: translateY(18px); } to { transform: none; } }
+    .reminder:not([hidden]) { animation: pop .6s cubic-bezier(.2,.7,.2,1) both; }
+    @keyframes pop { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
   }
 </style>
 
@@ -209,7 +240,7 @@
         <p class="day">Wednesday</p>
         <p class="date">17 February 2027</p>
         <p class="time">7:30 PM onwards</p>
-        <p class="where kn">ಸಂಜೆ ೭:೩೦ ರಿಂದ</p>
+        <p class="where">Shri Lakshmi Venkateshwara Convention Hall, Tavarekere</p>
       </article>
       <article class="event">
         <p class="label">The Wedding</p>
@@ -235,10 +266,19 @@
       <div><b id="cd-s">00</b><span>Seconds</span></div>
     </div>
     <p class="count-note" id="cd-note">until the muhurtham on 18 February 2027, 9:00 AM</p>
+    <div class="remind">
+      <p class="label">Remind me</p>
+      <div class="remind-btns">
+        <button class="btn" id="ics-btn" type="button">Add both to calendar</button>
+        <a class="btn" id="gc-reception" href="https://calendar.google.com" target="_blank" rel="noopener">Reception · Google</a>
+        <a class="btn" id="gc-muhurtham" href="https://calendar.google.com" target="_blank" rel="noopener">Muhurtham · Google</a>
+      </div>
+      <p class="remind-note">The calendar file sets reminders 2 days and 1 day before. Google Calendar links use your own default reminder.</p>
+    </div>
   </section>
 
   <section id="venue" class="venue">
-    <p class="label">Wedding Venue</p>
+    <p class="label">Venue for Reception &amp; Muhurtham</p>
     <p class="place">Shri Lakshmi Venkateshwara Convention Hall</p>
     <p class="place-kn">ಶ್ರೀ ಲಕ್ಷ್ಮೀ ವೆಂಕಟೇಶ್ವರ ಕನ್ವೆನ್ಷನ್ ಹಾಲ್</p>
     <p class="place-loc">Tavarekere &nbsp;·&nbsp; ತವರೆಕೆರೆ</p>
@@ -265,6 +305,14 @@
   </footer>
 </main>
 
+<aside id="reminder" class="reminder" role="status" hidden>
+  <button class="rem-x" id="rem-x" type="button" aria-label="Dismiss reminder">&times;</button>
+  <p class="kn-line" id="rem-kn"></p>
+  <p class="rem-title" id="rem-title"></p>
+  <p class="rem-body" id="rem-body"></p>
+  <a class="btn" id="rem-map" href="https://www.google.com/maps" target="_blank" rel="noopener">Open in Maps</a>
+</aside>
+
 <script>
 (function () {
   // Countdown to the muhurtham: 18 Feb 2027, 9:00 AM IST
@@ -289,6 +337,81 @@
   }
   tick();
   setInterval(tick, 1000);
+
+  // Calendar links and file
+  var MAPS = "https://www.google.com/maps/place/Shri+lakshmi+venkateshwara+convention+hall/@12.9674758,77.3871106,17z/data=!4m6!3m5!1s0x3bae3a054ba85fc5:0x27a1beac1057b251!8m2!3d12.9674752!4d77.3896853!16s%2Fg%2F11cn8zg76l!5m1!1e2?entry=ttu&g_ep=EgoyMDI2MTExMC4wIKXMDSoASAFQAw%3D%3D";
+  var VENUE = "Shri Lakshmi Venkateshwara Convention Hall, Tavarekere";
+  var EV = [
+    { id: "reception", title: "Reception: Sunil & Nandini", start: "20270217T140000Z", end: "20270217T170000Z", alarms: ["-P2D", "-P1D", "-PT3H"] },
+    { id: "muhurtham", title: "Muhurtham: Sunil & Nandini Wedding", start: "20270218T033000Z", end: "20270218T043000Z", alarms: ["-P2D", "-P1D", "-PT2H"] }
+  ];
+  function gcal(e) {
+    return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(e.title) +
+      "&dates=" + e.start + "/" + e.end + "&location=" + encodeURIComponent(VENUE) +
+      "&details=" + encodeURIComponent("Map: " + MAPS);
+  }
+  EV.forEach(function (e) { var a = document.getElementById("gc-" + e.id); if (a) a.href = gcal(e); });
+  function ics() {
+    function esc(t) { return t.replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\;"); }
+    var L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Sunil and Nandini Wedding//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
+    EV.forEach(function (e) {
+      L.push("BEGIN:VEVENT", "UID:" + e.id + "-20270218@sunil-nandini-wedding", "DTSTAMP:20261113T120000Z",
+        "DTSTART:" + e.start, "DTEND:" + e.end, "SUMMARY:" + esc(e.title), "LOCATION:" + esc(VENUE),
+        "DESCRIPTION:" + esc("Map: " + MAPS));
+      e.alarms.forEach(function (t) {
+        L.push("BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + esc(e.title), "TRIGGER:" + t, "END:VALARM");
+      });
+      L.push("END:VEVENT");
+    });
+    L.push("END:VCALENDAR");
+    return L.join("\r\n") + "\r\n";
+  }
+  var icsBtn = document.getElementById("ics-btn");
+  if (icsBtn) icsBtn.addEventListener("click", function () {
+    try {
+      var url = URL.createObjectURL(new Blob([ics()], { type: "text/calendar;charset=utf-8" }));
+      var a = document.createElement("a");
+      a.href = url; a.download = "Sunil-Nandini-Wedding.ics";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    } catch (err) {}
+  });
+
+  // Reminder pop-up: appears 2 days before, the reception day, and the wedding day (IST dates)
+  var box = document.getElementById("reminder");
+  var MSG = {
+    2: { kn: "ಇನ್ನು ೨ ದಿನ ಮಾತ್ರ", t: "Two days to go", b: "Reception on Wednesday, 17 Feb at 7:30 PM. Muhurtham on Thursday, 18 Feb, 9:00 to 10:00 AM. " + VENUE + "." },
+    1: { kn: "ಇಂದು ಆರತಕ್ಷತೆ", t: "Reception is today", b: "7:30 PM onwards at " + VENUE + ". Muhurtham tomorrow, 9:00 to 10:00 AM." },
+    0: { kn: "ಇಂದು ಮುಹೂರ್ತ", t: "Today is the day", b: "Muhurtham from 9:00 to 10:00 AM at " + VENUE + ". We are waiting to see you." }
+  };
+  function daysLeft() {
+    var ist = new Date(Date.now() + 19800000);
+    var today = Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate());
+    return Math.round((Date.UTC(2027, 1, 18) - today) / 86400000);
+  }
+  function showReminder() {
+    if (!box) return;
+    var n = location.hash === "#reminder-preview" ? 2 : daysLeft();
+    var m = MSG[n];
+    if (!m) { box.hidden = true; return; }
+    var key = "wed-reminder-" + n;
+    if (location.hash !== "#reminder-preview") {
+      try { if (localStorage.getItem(key)) return; } catch (err) {}
+    }
+    document.getElementById("rem-kn").textContent = m.kn;
+    document.getElementById("rem-title").textContent = m.t;
+    document.getElementById("rem-body").textContent = m.b;
+    document.getElementById("rem-map").href = MAPS;
+    box.hidden = false;
+  }
+  var remX = document.getElementById("rem-x");
+  if (remX) remX.addEventListener("click", function () {
+    box.hidden = true;
+    var n = location.hash === "#reminder-preview" ? 2 : daysLeft();
+    try { localStorage.setItem("wed-reminder-" + n, "1"); } catch (err) {}
+  });
+  window.addEventListener("hashchange", showReminder);
+  setTimeout(showReminder, 700);
 
   // Drifting petals, skipped for reduced motion
   var cv = document.getElementById("petals");
